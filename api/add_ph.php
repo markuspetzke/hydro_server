@@ -17,12 +17,15 @@ if($conn-> connect_error) {
 echo "Connected";
 
 $ph_value = $_POST['ph_value'];
-$sql = "INSERT INTO hydro (ph_value) VALUES ('" . $ph_value . "')"; //need to change for sec.
+$insert = $conn->prepare("INSERT INTO hydro (ph_value) VALUES (?)");
+$insert->bind_param("s", $ph_value);
+$insert->execute();
 
-// Ausführen
-if ($conn->query($sql) === TRUE) {
-    echo "New record created";
+if ($insert->affected_rows > 0) {
+    echo "New record created<br>";
 } else {
-    echo "Error: " . $sql . "<br>" . $conn->error;
+    echo "Error: " . $insert->error . "<br>";
 }
+
+$insert->close();
 ?>
