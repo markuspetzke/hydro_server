@@ -19,7 +19,7 @@
 
     <div id="tester" style="width: 600px; height: 650px"></div>
     <script>
-      $(document).ready(function () {
+      function loadPlotData() {
         $.post(
           "https://192.168.0.100:8081/api/get_ph.php",
           function (data, status) {
@@ -58,7 +58,9 @@
             }
           },
         );
-      });
+      }
+      $(document).ready(loadPlotData());
+      setInterval(loadPlotData, 60 * 1000);
     </script>
   </body>
 </html>
