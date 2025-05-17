@@ -1,5 +1,10 @@
 <html>
   <head>
+    <script
+      src="https://cdn.plot.ly/plotly-3.0.1.min.js"
+      charset="utf-8"
+    ></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <title>Hydro Plantage</title>
   </head>
 
@@ -9,5 +14,51 @@
       Name: <input type="number" name="ph_value" />
       <input type="submit" />
     </form>
+
+    <button>Send an HTTP POST request to a page and get the result back</button>
+
+    <div id="tester" style="width: 600px; height: 650px"></div>
+    <script>
+      $(document).ready(function () {
+        $.post(
+          "https://192.168.0.100:8081/api/get_ph.php",
+          function (data, status) {
+            if (status === "success") {
+              const mess_time = [];
+              const ph_values = [];
+
+              const jsonData =
+                typeof data === "string" ? JSON.parse(data) : data;
+
+              jsonData.forEach((entry) => {
+                mess_time.push(entry.mess_time);
+                ph_values.push(parseFloat(entry.ph_value));
+              });
+
+              Plotly.newPlot(
+                "tester",
+                [
+                  {
+                    x: mess_time,
+                    y: ph_values,
+                    type: "scatter",
+                    mode: "lines+markers",
+                    line: { shape: "spline" },
+                    marker: { color: "blue" },
+                  },
+                ],
+                {
+                  title: "pH-Werte der letzten 60 Minuten",
+                  xaxis: { title: "Zeit" },
+                  yaxis: { title: "pH-Wert" },
+                },
+              );
+            } else {
+              console.error("Datenabruf fehlgeschlagen");
+            }
+          },
+        );
+      });
+    </script>
   </body>
 </html>
