@@ -1,11 +1,12 @@
 <?php 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+$env = parse_ini_file('.env');
 
-$servername = "192.168.0.100";
-$username = "user";
-$password = "pass";
-$dbname = "myDB";
+$servername = $env["DATABASE_URL"];
+$username = $env["DATABASE_USERNAME"];
+$password = $env["DATABASE_PASSWORD"];
+$dbname = $env["DATABASE_NAME"];
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 
