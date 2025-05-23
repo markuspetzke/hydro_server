@@ -17,11 +17,7 @@
 
     <button>Send an HTTP POST request to a page and get the result back</button>
 
-    <div id="Sensor 1" style="width: 600px; height: 650px"></div>
-    <div id="Sensor 2" style="width: 600px; height: 650px"></div>
-    <div id="Sensor 3" style="width: 600px; height: 650px"></div>
-    <div id="Sensor 4" style="width: 600px; height: 650px"></div>
-    <div id="Sensor 5" style="width: 600px; height: 650px"></div>
+    <div id="sensor"></div>
     <script>
       function loadPlotData() {
         $.post(
@@ -48,7 +44,17 @@
                 sensor.mess_time.push(entry.mess_time);
               });
 
+
+              const sensor_parent= document.getElementById("sensor");
               sensors.forEach((entry) => {
+
+                const sensor_node = document.createElement("div");
+                sensor_node.id = "Sensor " + entry.sensor_id;
+                // sensor_node.style['width'] = "600px";
+                // sensor_node.style['height'] = "650px";
+
+                sensor_parent.appendChild(sensor_node);
+
               Plotly.newPlot(
                 "Sensor " + entry.sensor_id,
                 [
