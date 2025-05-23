@@ -17,30 +17,44 @@
 
     <button>Send an HTTP POST request to a page and get the result back</button>
 
-    <div id="tester" style="width: 600px; height: 650px"></div>
+    <div id="Sensor 1" style="width: 600px; height: 650px"></div>
+    <div id="Sensor 2" style="width: 600px; height: 650px"></div>
+    <div id="Sensor 3" style="width: 600px; height: 650px"></div>
+    <div id="Sensor 4" style="width: 600px; height: 650px"></div>
+    <div id="Sensor 5" style="width: 600px; height: 650px"></div>
     <script>
       function loadPlotData() {
         $.post(
           "https://192.168.0.100:8081/api/get_ph.php",
           function (data, status) {
             if (status === "success") {
-              const mess_time = [];
-              const ph_values = [];
 
               const jsonData =
                 typeof data === "string" ? JSON.parse(data) : data;
 
+              const sensors = new Map();
+
               jsonData.forEach((entry) => {
-                mess_time.push(entry.mess_time);
-                ph_values.push(parseFloat(entry.ph_value));
+                if(!sensors.has(entry.sensor_id)) {
+                  sensors.set(entry.sensor_id, {
+                    sensor_id: entry.sensor_id,
+                    ph_value: [],
+                    mess_time: []
+                  });
+                }
+                
+                const sensor = sensors.get(entry.sensor_id);
+                sensor.ph_value.push(entry.ph_value);
+                sensor.mess_time.push(entry.mess_time);
               });
 
+              sensors.forEach((entry) => {
               Plotly.newPlot(
-                "tester",
+                "Sensor " + entry.sensor_id,
                 [
                   {
-                    x: mess_time,
-                    y: ph_values,
+                    x: entry.mess_time,
+                    y: entry.ph_value,
                     type: "scatter",
                     mode: "lines+markers",
                     line: { shape: "spline" },
@@ -53,6 +67,8 @@
                   yaxis: { title: "pH-Wert" },
                 },
               );
+              })
+              
             } else {
               console.error("Datenabruf fehlgeschlagen");
             }
