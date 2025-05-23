@@ -35,7 +35,8 @@
                   sensors.set(entry.sensor_id, {
                     sensor_id: entry.sensor_id,
                     ph_value: [],
-                    mess_time: []
+                    mess_time: [],
+                    avg: 0 
                   });
                 }
                 
@@ -47,6 +48,19 @@
 
               const sensor_parent= document.getElementById("sensor");
               sensors.forEach((entry) => {
+
+                const sorted = [...entry.ph_value].sort((a,b) => a -b);
+                const mid = Math.floor(sorted.length / 2);
+
+                entry.avg = sorted.length % 2 !== 0 
+                  ? sorted[mid]
+                  : (sorted[mid -1] + sorted[mid]) / 2;
+                  console.log(entry.avg);
+
+                const tolerance = 0.5;
+                entry.ph_value = entry.ph_value.filter(val => Math.abs(val - entry.avg) <= tolerance);
+
+
 
                 const sensor_node = document.createElement("div");
                 sensor_node.id = "Sensor " + entry.sensor_id;
