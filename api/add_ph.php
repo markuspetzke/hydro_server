@@ -33,8 +33,7 @@ if ($conn-> connect_error) {
     die();
 }
 
-$json = file_get_contents('php://input');
-$data = json_decode($json, true);
+$data = json_decode(file_get_contents('php://input'), true);
 
 if (json_last_error() === JSON_ERROR_NONE && !empty($data)) {
     echo json_encode($data);

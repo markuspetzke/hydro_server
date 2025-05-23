@@ -31,7 +31,8 @@ if ($conn-> connect_error) {
 
 $stmt = $conn->prepare(
     "SELECT ph_value, sensor_id, mess_time FROM hydro
-     WHERE mess_time >= NOW() - INTERVAL 1 HOUR AND ph_value IS NOT NULL"
+      WHERE mess_time >= NOW() - INTERVAL 1 HOUR
+      ORDER BY mess_time"
 );
 
 $stmt->execute();
