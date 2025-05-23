@@ -14,6 +14,9 @@
  * @link       https://yoursite.com
  * @since      1.0.0
  */
+
+header('Content-Type: application/json');
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 $env = parse_ini_file('.env');
@@ -26,23 +29,41 @@ $dbname = $env["DATABASE_NAME"];
 $conn = new mysqli($servername, $username, $password, $dbname);
 
 if ($conn-> connect_error) {
-    die("Connection failed: ". $conn->connect_error);
+    echo json_encode(["Connection failed" => $conn->connect_error]);
+    die();
 }
 
-echo "Connected";
+$json = file_get_contents('php://input');
+$data = json_decode($json, true);
 
-$ph_value = $_POST['ph_value'];
-if (empty($ph_value)) {
-    die("ph_value is empty");
+if (json_last_error() === JSON_ERROR_NONE && !empty($data)) {
+    echo json_encode($data);
+} else {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid JSON']);
+    die();
 }
-$insert = $conn->prepare("INSERT INTO hydro (ph_value) VALUES (?)");
-$insert->bind_param("s", $ph_value);
+
+if (empty($data['ph_value'])) {
+    echo json_encode(['error' => "ph_value is empty"]);
+    die();
+}
+if (empty($data['sensor_id'])) {
+    echo json_encode(['error' => "sensor_id is empty"]);
+    die();
+}
+
+
+$insert = $conn->prepare("INSERT INTO hydro (ph_value, sensor_id) VALUES (?,?)");
+$insert->bind_param("di", $data['ph_value'], $data['sensor_id']);
 $insert->execute();
 
 if ($insert->affected_rows > 0) {
-    echo "New record created<br>";
+    echo json_encode(['success' => "new record created"]);
 } else {
-    echo "Error: " . $insert->error . "<br>";
+    echo json_encode(['error' => $insert->error]);
+    $insert->close();
+    die();
 }
 
 $insert->close();
