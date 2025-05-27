@@ -8,13 +8,15 @@
 
 <body>
   <h1>Sensor #1</h1>
-  <input id="input_tolerance" type="number" name="Tolerance" value="0.3"></input>
-  <input onclick="showPlot()" type="checkbox" id="check_tolerance"> Show with tolerance? </input>
+  <input id="input_tolerance" type="number" name="Tolerance" value="0.3" step="0.01">
+  <label>
+    <input onclick="showPlot()" type="checkbox" id="check_tolerance">
+    Show with tolerance?
+  </label>
 
-
-  <div id="sensor"></div>
+  <div id="sensor" style="width: 80%;"></div>
   <div id="data" style="width: 100%; display: flex; justify-content: space-evenly;">
-    <p>Avg: <span id="span_avg"></span> </p>
+    <p>Median: <span id="span_median"></span> </p>
     <p>Mean: <span id="span_mean"> 50</span> </p>
     <p>Count: <span id="span_count"> 50</span> </p>
     <p>Timespan: <span id="span_timespan"> 50</span> </p>
@@ -22,58 +24,56 @@
   </div>
   <script>
     const check_tolerance = document.getElementById("check_tolerance");
-    const span_avg = document.getElementById("span_avg");
+    const span_median = document.getElementById("span_median");
     const span_mean = document.getElementById("span_mean");
     const span_count = document.getElementById("span_count");
     const span_timespan = document.getElementById("span_timespan");
     const span_tolerance = document.getElementById("span_tolerance");
     const sensor_parent = document.getElementById("sensor");
-    let tolerance = document.getElementById("input_tolerance").value;
+    let tolerance = parseFloat(document.getElementById("input_tolerance").value);
 
     const baseLine = 6.3;
     const sensors = new Map();
 
     function updateInfo(entry) {
-      span_avg.innerHTML = entry.avg;
-      span_mean.innerHTML = "mean";
+      span_median.innerHTML = entry.median.toFixed(2);
       span_count.innerHTML = entry.ph_value.length;
       span_timespan.innerHTML = entry.mess_time[0] + " - " + entry.mess_time[entry.mess_time.length - 1];
-      span_tolerance.innerHTML = "[ " + (entry.avg - tolerance) + " ; " + (entry.avg + tolerance) + " ]";
+      span_tolerance.innerHTML = "[ " + (entry.median - tolerance).toFixed(2) + " ; " + (entry.median + tolerance).toFixed(2) + " ]";
+      span_mean.innerHTML = entry.mean.toFixed(2);
     }
 
     function showPlot() {
       tolerance = parseFloat(document.getElementById("input_tolerance").value);
-      sensors.forEach((entry) => {
 
+      sensors.forEach((entry) => {
         const sorted = [...entry.ph_value].sort((a, b) => a - b);
         const mid = Math.floor(sorted.length / 2);
-        entry.avg = sorted.length % 2 !== 0
+        entry.median = sorted.length % 2 !== 0
           ? sorted[mid]
           : (sorted[mid - 1] + sorted[mid]) / 2;
+        entry.mean = entry.ph_value.reduce((a, b) => a + b, 0) / entry.ph_value.length;
 
 
-        if (document.getElementById("Sensor " + entry.sensor_id) == null) {
+        const sensorId = "Sensor " + entry.sensor_id;
+        if (!document.getElementById(sensorId)) {
           const sensor_node = document.createElement("div");
-          sensor_node.id = "Sensor " + entry.sensor_id;
-          sensor_node.style['width'] = "1000px";
-          sensor_node.style['height'] = "650px";
+          sensor_node.id = sensorId;
+          sensor_node.style.width = "100%";
+          sensor_node.style.height = "650px";
           sensor_parent.appendChild(sensor_node);
         }
 
-        let filtered_ph = entry.ph_value;
-        let filtered_time = entry.mess_time;
-
-        if (check_tolerance.checked) {
-          filtered_ph = [];
-          filtered_time = [];
-
-          for (let i = 0; i < entry.ph_value.length; i++) {
-            if (Math.abs(entry.ph_value[i] - entry.avg) <= tolerance) {
-              filtered_ph.push(entry.ph_value[i]);
-              filtered_time.push(entry.mess_time[i]);
-            }
+        let filtered_ph = [];
+        let filtered_time = [];
+        for (let i = 0; i < entry.ph_value.length; i++) {
+          if (!check_tolerance.checked || Math.abs(entry.ph_value[i] - entry.median) <= tolerance) {
+            filtered_ph.push(entry.ph_value[i]);
+            filtered_time.push(entry.mess_time[i]);
           }
         }
+
+        if (filtered_time.length < 2) return;
 
         const result = {
           ...entry,
@@ -82,110 +82,71 @@
         };
 
         updateInfo(result);
-        const tol = parseFloat(tolerance);
+
         const layout = {
-          title: {
-            text: 'PH-Verlauf über Zeit'
+          title: {text: 'PH-Verlauf über Zeit'},
+          xaxis: {title: 'Messzeitpunkte', type: 'category', automargin: true},
+          yaxis: {title: 'pH-Wert', range: [5, 8], zeroline: false}
+        };
+
+        const data = [
+          {
+            type: 'scatter',
+            x: result.mess_time,
+            y: result.ph_value,
+            mode: 'lines+markers',
+            name: 'Messdaten',
+            line: {color: 'blue', width: 2}
           },
-          xaxis: {
-            title: 'Messzeitpunkte',
-            type: 'category',
-            automargin: true
+          {
+            type: 'scatter',
+            x: [result.mess_time[0], result.mess_time.at(-1)],
+            y: [6.3, 6.3],
+            mode: 'lines',
+            name: 'Center (6.3)',
+            line: {color: 'green', width: 2, dash: 'dash'}
           },
-          yaxis: {
-            title: 'pH-Wert',
-            range: [5, 8],
-            zeroline: false
+          {
+            type: 'scatter',
+            x: [result.mess_time[0], result.mess_time.at(-1)],
+            y: [6.3 + tolerance, 6.3 + tolerance],
+            mode: 'lines',
+            name: 'UCL (+Tol)',
+            line: {color: 'red', width: 1, dash: 'dot'}
           },
-        };
-        const Data = {
-          type: 'scatter',
-          x: result.mess_time,
-          y: result.ph_value,
-          mode: 'lines+markers',
-          name: 'Messdaten',
-          line: {
-            color: 'blue',
-            width: 2
+          {
+            type: 'scatter',
+            x: [result.mess_time[0], result.mess_time.at(-1)],
+            y: [6.3 - tolerance, 6.3 - tolerance],
+            mode: 'lines',
+            name: 'LCL (-Tol)',
+            line: {color: 'red', width: 1, dash: 'dot'}
           }
-        };
+        ];
 
-        const Center = {
-          type: 'scatter',
-          x: [result.mess_time[0], result.mess_time[result.mess_time.length - 1]],
-          y: [6.3, 6.3],
-          mode: 'lines',
-          name: 'Center (6.3)',
-          showlegend: true,
-          line: {
-            color: 'green',
-            width: 2,
-            dash: 'dash'
-          }
-        };
-
-        const UCL = {
-          type: 'scatter',
-          x: [result.mess_time[0], result.mess_time[result.mess_time.length - 1]],
-          y: [baseLine + tol, baseLine + tol],
-          mode: 'lines',
-          name: 'UCL (+Tol)',
-          showlegend: true,
-          line: {
-            color: 'red',
-            width: 1,
-            dash: 'dot'
-          }
-        };
-
-        const LCL = {
-          type: 'scatter',
-          x: [result.mess_time[0], result.mess_time[result.mess_time.length - 1]],
-          y: [baseLine - tol, baseLine - tol],
-          mode: 'lines',
-          name: 'LCL (-Tol)',
-          showlegend: true,
-          line: {
-            color: 'red',
-            width: 1,
-            dash: 'dot'
-          }
-        };
-
-        const tmp = {
-          type: 'scatter',
-          x: [null, null],
-          y: [6.5, 6.5],
-          mode: 'lines',
-          name: 'Centre',
-          showlegend: true,
-          line: {
-            color: 'grey',
-            width: 2
-          }
-        };
-        var data = [Data, Center, UCL, LCL];
-
-        Plotly.newPlot('Sensor ' + entry.sensor_id, data, layout);
-      })
-    };
-
-    function loadPlotData() {
+        Plotly.newPlot(sensorId, data, layout);
+      });
+    } function loadPlotData() {
       $.post(
         "https://192.168.0.100:8081/api/get_ph.php",
         function (data, status) {
           if (status === "success") {
 
-            const jsonData =
-              typeof data === "string" ? JSON.parse(data) : data;
-
+            let jsonData;
+            try {
+              jsonData = typeof data === "string" ? JSON.parse(data) : data;
+            } catch (e) {
+              console.error("Fehler beim Parsen von JSON", e);
+              return;
+            }
             jsonData.forEach((entry) => {
               if (!sensors.has(entry.sensor_id)) {
                 sensors.set(entry.sensor_id, {
                   sensor_id: entry.sensor_id,
                   ph_value: [],
                   mess_time: [],
-                  avg: 0
+                  median: 0,
+                  mean: 0
                 });
               }
 
@@ -203,7 +164,7 @@
         },
       );
     }
-    $(document).ready(loadPlotData());
+    $(document).ready(loadPlotData);
     setInterval(loadPlotData, 60 * 1000);
   </script>
 </body>
