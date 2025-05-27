@@ -9,7 +9,7 @@
 <body>
   <h1>Sensor #1</h1>
   <input id="input_tolerance" type="number" name="Tolerance" value="0.3"></input>
-  <input onclick="loadPlotData()" type="checkbox" id="check_tolerance"> Show with tolerance? </input>
+  <input onclick="showPlot()" type="checkbox" id="check_tolerance"> Show with tolerance? </input>
 
 
   <div id="sensor"></div>
@@ -18,6 +18,7 @@
     <p>Mean: <span id="span_mean"> 50</span> </p>
     <p>Count: <span id="span_count"> 50</span> </p>
     <p>Timespan: <span id="span_timespan"> 50</span> </p>
+    <p>Tolerance-Interval: <span id="span_tolerance"> 50</span> </p>
   </div>
   <script>
     const check_tolerance = document.getElementById("check_tolerance");
@@ -25,11 +26,66 @@
     const span_mean = document.getElementById("span_mean");
     const span_count = document.getElementById("span_count");
     const span_timespan = document.getElementById("span_timespan");
+    const span_tolerance = document.getElementById("span_tolerance");
     const sensor_parent = document.getElementById("sensor");
-    const tolerance = document.getElementById("input_tolerance").value;
+    let tolerance = document.getElementById("input_tolerance").value;
+
+    const sensors = new Map();
+
+    function updateInfo(entry) {
+      span_avg.innerHTML = entry.avg;
+      span_mean.innerHTML = "mean";
+      span_count.innerHTML = entry.ph_value.length;
+      span_timespan.innerHTML = entry.mess_time[0] + " - " + entry.mess_time[entry.mess_time.length - 1];
+      span_tolerance.innerHTML = "[ " + (entry.avg - tolerance) + " ; " + (entry.avg + tolerance) + " ]";
+    }
+
+    function showPlot() {
+      tolerance = document.getElementById("input_tolerance").value;
+      sensors.forEach((entry) => {
+
+        const sorted = [...entry.ph_value].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+
+        entry.avg = sorted.length % 2 !== 0
+          ? sorted[mid]
+          : (sorted[mid - 1] + sorted[mid]) / 2;
+
+        if (document.getElementById("Sensor " + entry.sensor_id) == null) {
+          const sensor_node = document.createElement("div");
+          sensor_node.id = "Sensor " + entry.sensor_id;
+          sensor_node.style['width'] = "1000px";
+          sensor_node.style['height'] = "650px";
+          sensor_parent.appendChild(sensor_node);
+        }
+        const result = check_tolerance.checked
+          ? {...entry, ph_value: entry.ph_value.filter(val => Math.abs(val - entry.avg) <= tolerance)}
+          : entry;
+
+        updateInfo(result);
+        Plotly.newPlot(
+          "Sensor " + entry.sensor_id,
+          [
+            {
+              x: entry.mess_time,
+              y: ((check_tolerance.checked) ? entry.ph_value.filter(val => Math.abs(val - entry.avg) <= tolerance) : entry.ph_value),
+              type: "scatter",
+              mode: "lines+markers",
+              line: {shape: "spline"},
+              marker: {color: "blue"},
+            },
+          ],
+          {
+            title: "pH-Werte der letzten 60 Minuten",
+            xaxis: {title: "Zeit"},
+            yaxis: {title: "pH-Wert"},
+          },
+        );
+      })
+
+    }
 
     function loadPlotData() {
-
       $.post(
         "https://192.168.0.100:8081/api/get_ph.php",
         function (data, status) {
@@ -37,8 +93,6 @@
 
             const jsonData =
               typeof data === "string" ? JSON.parse(data) : data;
-
-            const sensors = new Map();
 
             jsonData.forEach((entry) => {
               if (!sensors.has(entry.sensor_id)) {
@@ -51,60 +105,13 @@
               }
 
               const sensor = sensors.get(entry.sensor_id);
-              sensor.ph_value.push(entry.ph_value);
-              sensor.mess_time.push(entry.mess_time);
+              if (!sensor.mess_time.includes(entry.mess_time)) {
+                sensor.ph_value.push(entry.ph_value);
+                sensor.mess_time.push(entry.mess_time);
+              }
             });
 
-            sensors.forEach((entry) => {
-
-              const sorted = [...entry.ph_value].sort((a, b) => a - b);
-              const mid = Math.floor(sorted.length / 2);
-
-              entry.avg = sorted.length % 2 !== 0
-                ? sorted[mid]
-                : (sorted[mid - 1] + sorted[mid]) / 2;
-
-
-
-              if (check_tolerance.checked) {
-                entry.ph_value = entry.ph_value.filter(val => Math.abs(val - entry.avg) <= tolerance);
-              }
-
-              span_avg.innerHTML = entry.avg;
-              span_mean.innerHTML = "mean";
-              span_count.innerHTML = entry.ph_value.length;
-              span_timespan.innerHTML = entry.mess_time[0] + " - " + entry.mess_time[entry.mess_time.length - 1];
-
-              if (document.getElementById("Sensor " + entry.sensor_id) == null) {
-                const sensor_node = document.createElement("div");
-                sensor_node.id = "Sensor " + entry.sensor_id;
-                sensor_node.style['width'] = "600px";
-                sensor_node.style['height'] = "650px";
-
-                sensor_parent.appendChild(sensor_node);
-
-              }
-
-              Plotly.newPlot(
-                "Sensor " + entry.sensor_id,
-                [
-                  {
-                    x: entry.mess_time,
-                    y: entry.ph_value,
-                    type: "scatter",
-                    mode: "lines+markers",
-                    line: {shape: "spline"},
-                    marker: {color: "blue"},
-                  },
-                ],
-                {
-                  title: "pH-Werte der letzten 60 Minuten",
-                  xaxis: {title: "Zeit"},
-                  yaxis: {title: "pH-Wert"},
-                },
-              );
-            })
-
+            showPlot();
           } else {
             console.error("Datenabruf fehlgeschlagen");
           }
