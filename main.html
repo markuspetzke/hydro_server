@@ -8,14 +8,28 @@
 
 <body>
   <h1>Sensor #1</h1>
+  <input id="input_tolerance" type="number" name="Tolerance" value="0.3"></input>
   <input onclick="loadPlotData()" type="checkbox" id="check_tolerance"> Show with tolerance? </input>
 
 
   <div id="sensor"></div>
+  <div id="data" style="width: 100%; display: flex; justify-content: space-evenly;">
+    <p>Avg: <span id="span_avg"></span> </p>
+    <p>Mean: <span id="span_mean"> 50</span> </p>
+    <p>Count: <span id="span_count"> 50</span> </p>
+    <p>Timespan: <span id="span_timespan"> 50</span> </p>
+  </div>
   <script>
     const check_tolerance = document.getElementById("check_tolerance");
+    const span_avg = document.getElementById("span_avg");
+    const span_mean = document.getElementById("span_mean");
+    const span_count = document.getElementById("span_count");
+    const span_timespan = document.getElementById("span_timespan");
+    const sensor_parent = document.getElementById("sensor");
+    const tolerance = document.getElementById("input_tolerance").value;
 
     function loadPlotData() {
+
       $.post(
         "https://192.168.0.100:8081/api/get_ph.php",
         function (data, status) {
@@ -41,8 +55,6 @@
               sensor.mess_time.push(entry.mess_time);
             });
 
-
-            const sensor_parent = document.getElementById("sensor");
             sensors.forEach((entry) => {
 
               const sorted = [...entry.ph_value].sort((a, b) => a - b);
@@ -51,21 +63,27 @@
               entry.avg = sorted.length % 2 !== 0
                 ? sorted[mid]
                 : (sorted[mid - 1] + sorted[mid]) / 2;
-              console.log(entry.avg);
 
-              const tolerance = 0.30;
 
 
               if (check_tolerance.checked) {
                 entry.ph_value = entry.ph_value.filter(val => Math.abs(val - entry.avg) <= tolerance);
               }
 
-              const sensor_node = document.createElement("div");
-              sensor_node.id = "Sensor " + entry.sensor_id;
-              sensor_node.style['width'] = "600px";
-              sensor_node.style['height'] = "650px";
+              span_avg.innerHTML = entry.avg;
+              span_mean.innerHTML = "mean";
+              span_count.innerHTML = entry.ph_value.length;
+              span_timespan.innerHTML = entry.mess_time[0] + " - " + entry.mess_time[entry.mess_time.length - 1];
 
-              sensor_parent.appendChild(sensor_node);
+              if (document.getElementById("Sensor " + entry.sensor_id) == null) {
+                const sensor_node = document.createElement("div");
+                sensor_node.id = "Sensor " + entry.sensor_id;
+                sensor_node.style['width'] = "600px";
+                sensor_node.style['height'] = "650px";
+
+                sensor_parent.appendChild(sensor_node);
+
+              }
 
               Plotly.newPlot(
                 "Sensor " + entry.sensor_id,
