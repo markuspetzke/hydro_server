@@ -30,6 +30,7 @@
     const sensor_parent = document.getElementById("sensor");
     let tolerance = document.getElementById("input_tolerance").value;
 
+    const baseLine = 6.3;
     const sensors = new Map();
 
     function updateInfo(entry) {
@@ -41,15 +42,15 @@
     }
 
     function showPlot() {
-      tolerance = document.getElementById("input_tolerance").value;
+      tolerance = parseFloat(document.getElementById("input_tolerance").value);
       sensors.forEach((entry) => {
 
         const sorted = [...entry.ph_value].sort((a, b) => a - b);
         const mid = Math.floor(sorted.length / 2);
-
         entry.avg = sorted.length % 2 !== 0
           ? sorted[mid]
           : (sorted[mid - 1] + sorted[mid]) / 2;
+
 
         if (document.getElementById("Sensor " + entry.sensor_id) == null) {
           const sensor_node = document.createElement("div");
@@ -58,32 +59,116 @@
           sensor_node.style['height'] = "650px";
           sensor_parent.appendChild(sensor_node);
         }
-        const result = check_tolerance.checked
-          ? {...entry, ph_value: entry.ph_value.filter(val => Math.abs(val - entry.avg) <= tolerance)}
-          : entry;
+
+        let filtered_ph = entry.ph_value;
+        let filtered_time = entry.mess_time;
+
+        if (check_tolerance.checked) {
+          filtered_ph = [];
+          filtered_time = [];
+
+          for (let i = 0; i < entry.ph_value.length; i++) {
+            if (Math.abs(entry.ph_value[i] - entry.avg) <= tolerance) {
+              filtered_ph.push(entry.ph_value[i]);
+              filtered_time.push(entry.mess_time[i]);
+            }
+          }
+        }
+
+        const result = {
+          ...entry,
+          ph_value: filtered_ph,
+          mess_time: filtered_time
+        };
 
         updateInfo(result);
-        Plotly.newPlot(
-          "Sensor " + entry.sensor_id,
-          [
-            {
-              x: entry.mess_time,
-              y: ((check_tolerance.checked) ? entry.ph_value.filter(val => Math.abs(val - entry.avg) <= tolerance) : entry.ph_value),
-              type: "scatter",
-              mode: "lines+markers",
-              line: {shape: "spline"},
-              marker: {color: "blue"},
-            },
-          ],
-          {
-            title: "pH-Werte der letzten 60 Minuten",
-            xaxis: {title: "Zeit"},
-            yaxis: {title: "pH-Wert"},
+        const tol = parseFloat(tolerance);
+        const layout = {
+          title: {
+            text: 'PH-Verlauf über Zeit'
           },
-        );
-      })
+          xaxis: {
+            title: 'Messzeitpunkte',
+            type: 'category',
+            automargin: true
+          },
+          yaxis: {
+            title: 'pH-Wert',
+            range: [5, 8],
+            zeroline: false
+          },
+        };
+        const Data = {
+          type: 'scatter',
+          x: result.mess_time,
+          y: result.ph_value,
+          mode: 'lines+markers',
+          name: 'Messdaten',
+          line: {
+            color: 'blue',
+            width: 2
+          }
+        };
 
-    }
+        const Center = {
+          type: 'scatter',
+          x: [result.mess_time[0], result.mess_time[result.mess_time.length - 1]],
+          y: [6.3, 6.3],
+          mode: 'lines',
+          name: 'Center (6.3)',
+          showlegend: true,
+          line: {
+            color: 'green',
+            width: 2,
+            dash: 'dash'
+          }
+        };
+
+        const UCL = {
+          type: 'scatter',
+          x: [result.mess_time[0], result.mess_time[result.mess_time.length - 1]],
+          y: [baseLine + tol, baseLine + tol],
+          mode: 'lines',
+          name: 'UCL (+Tol)',
+          showlegend: true,
+          line: {
+            color: 'red',
+            width: 1,
+            dash: 'dot'
+          }
+        };
+
+        const LCL = {
+          type: 'scatter',
+          x: [result.mess_time[0], result.mess_time[result.mess_time.length - 1]],
+          y: [baseLine - tol, baseLine - tol],
+          mode: 'lines',
+          name: 'LCL (-Tol)',
+          showlegend: true,
+          line: {
+            color: 'red',
+            width: 1,
+            dash: 'dot'
+          }
+        };
+
+        const tmp = {
+          type: 'scatter',
+          x: [null, null],
+          y: [6.5, 6.5],
+          mode: 'lines',
+          name: 'Centre',
+          showlegend: true,
+          line: {
+            color: 'grey',
+            width: 2
+          }
+        };
+        var data = [Data, Center, UCL, LCL];
+
+        Plotly.newPlot('Sensor ' + entry.sensor_id, data, layout);
+      })
+    };
 
     function loadPlotData() {
       $.post(
