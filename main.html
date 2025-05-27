@@ -1,73 +1,71 @@
 <html>
-  <head>
-    <script
-      src="https://cdn.plot.ly/plotly-3.0.1.min.js"
-      charset="utf-8"
-    ></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <title>Hydro Plantage</title>
-  </head>
 
-  <body>
-    <h1>Test</h1>
-    <form method="POST" action="https://192.168.0.100:8081/api/add_ph.php">
-      Name: <input type="number" name="ph_value" />
-      <input type="submit" />
-    </form>
+<head>
+  <script src="https://cdn.plot.ly/plotly-3.0.1.min.js" charset="utf-8"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <title>Hydro Plantage</title>
+</head>
 
-    <button>Send an HTTP POST request to a page and get the result back</button>
-
-    <div id="sensor"></div>
-    <script>
-      function loadPlotData() {
-        $.post(
-          "https://192.168.0.100:8081/api/get_ph.php",
-          function (data, status) {
-            if (status === "success") {
-
-              const jsonData =
-                typeof data === "string" ? JSON.parse(data) : data;
-
-              const sensors = new Map();
-
-              jsonData.forEach((entry) => {
-                if(!sensors.has(entry.sensor_id)) {
-                  sensors.set(entry.sensor_id, {
-                    sensor_id: entry.sensor_id,
-                    ph_value: [],
-                    mess_time: [],
-                    avg: 0 
-                  });
-                }
-                
-                const sensor = sensors.get(entry.sensor_id);
-                sensor.ph_value.push(entry.ph_value);
-                sensor.mess_time.push(entry.mess_time);
-              });
+<body>
+  <h1>Sensor #1</h1>
+  <input onclick="loadPlotData()" type="checkbox" id="check_tolerance"> Show with tolerance? </input>
 
 
-              const sensor_parent= document.getElementById("sensor");
-              sensors.forEach((entry) => {
+  <div id="sensor"></div>
+  <script>
+    const check_tolerance = document.getElementById("check_tolerance");
 
-                const sorted = [...entry.ph_value].sort((a,b) => a -b);
-                const mid = Math.floor(sorted.length / 2);
+    function loadPlotData() {
+      $.post(
+        "https://192.168.0.100:8081/api/get_ph.php",
+        function (data, status) {
+          if (status === "success") {
 
-                entry.avg = sorted.length % 2 !== 0 
-                  ? sorted[mid]
-                  : (sorted[mid -1] + sorted[mid]) / 2;
-                  console.log(entry.avg);
+            const jsonData =
+              typeof data === "string" ? JSON.parse(data) : data;
 
-                const tolerance = 0.5;
+            const sensors = new Map();
+
+            jsonData.forEach((entry) => {
+              if (!sensors.has(entry.sensor_id)) {
+                sensors.set(entry.sensor_id, {
+                  sensor_id: entry.sensor_id,
+                  ph_value: [],
+                  mess_time: [],
+                  avg: 0
+                });
+              }
+
+              const sensor = sensors.get(entry.sensor_id);
+              sensor.ph_value.push(entry.ph_value);
+              sensor.mess_time.push(entry.mess_time);
+            });
+
+
+            const sensor_parent = document.getElementById("sensor");
+            sensors.forEach((entry) => {
+
+              const sorted = [...entry.ph_value].sort((a, b) => a - b);
+              const mid = Math.floor(sorted.length / 2);
+
+              entry.avg = sorted.length % 2 !== 0
+                ? sorted[mid]
+                : (sorted[mid - 1] + sorted[mid]) / 2;
+              console.log(entry.avg);
+
+              const tolerance = 0.30;
+
+
+              if (check_tolerance.checked) {
                 entry.ph_value = entry.ph_value.filter(val => Math.abs(val - entry.avg) <= tolerance);
+              }
 
+              const sensor_node = document.createElement("div");
+              sensor_node.id = "Sensor " + entry.sensor_id;
+              sensor_node.style['width'] = "600px";
+              sensor_node.style['height'] = "650px";
 
-
-                const sensor_node = document.createElement("div");
-                sensor_node.id = "Sensor " + entry.sensor_id;
-                // sensor_node.style['width'] = "600px";
-                // sensor_node.style['height'] = "650px";
-
-                sensor_parent.appendChild(sensor_node);
+              sensor_parent.appendChild(sensor_node);
 
               Plotly.newPlot(
                 "Sensor " + entry.sensor_id,
@@ -77,26 +75,27 @@
                     y: entry.ph_value,
                     type: "scatter",
                     mode: "lines+markers",
-                    line: { shape: "spline" },
-                    marker: { color: "blue" },
+                    line: {shape: "spline"},
+                    marker: {color: "blue"},
                   },
                 ],
                 {
                   title: "pH-Werte der letzten 60 Minuten",
-                  xaxis: { title: "Zeit" },
-                  yaxis: { title: "pH-Wert" },
+                  xaxis: {title: "Zeit"},
+                  yaxis: {title: "pH-Wert"},
                 },
               );
-              })
-              
-            } else {
-              console.error("Datenabruf fehlgeschlagen");
-            }
-          },
-        );
-      }
-      $(document).ready(loadPlotData());
-      setInterval(loadPlotData, 60 * 1000);
-    </script>
-  </body>
+            })
+
+          } else {
+            console.error("Datenabruf fehlgeschlagen");
+          }
+        },
+      );
+    }
+    $(document).ready(loadPlotData());
+    setInterval(loadPlotData, 60 * 1000);
+  </script>
+</body>
+
 </html>
