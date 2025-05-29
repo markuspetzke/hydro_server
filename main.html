@@ -14,6 +14,27 @@
     Show with tolerance?
   </label>
 
+  <form name="myForm">
+    <input id="day_pump" type="number" name="Day-Pump-Interval" value="0">
+    <input id="day_break" type="number" name="Day-Pump-Interval" value="0">
+    <input id="night_pump" type="number" name="Day-Pump-Interval" value="0">
+    <input id="night_break" type="number" name="Day-Pump-Interval" value="0">
+    <input type="submit" value="Submit" onclick="submitForm()">
+  </form>
+  <script>
+    function submitForm() {
+      var formData = JSON.stringify($("#myForm").serializeArray());
+      $.ajax({
+        type: "POST",
+        url: "/api/update_settings.php",
+        data: formData,
+        success: function () { },
+        dataType: "json",
+        contentType: "application/json"
+      });
+    }
+
+  </script>
   <div id="sensor" style="width: 80%;"></div>
   <div id="data" style="width: 100%; display: flex; justify-content: space-evenly;">
     <p>Median: <span id="span_median"></span> </p>
