@@ -39,7 +39,7 @@ $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows > 0) {
-    $output = $result->fetch_all(MYSQLI_ASSOC);
+    $output = $result->fetch_assoc();
     echo json_encode($output);
 
 } else {
